@@ -42,11 +42,15 @@ def elo(r_x, r_y, who):
     r_y_ = round(r_y + k * (S_y-E_y))
     return r_x_, r_y_
 
-
 class API(BaseHTTPRequestHandler):
+    ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
+    twos = ['verliert', 'unterliegt', 'loses', 'lost', 'verloren', 'verliere']
+    zeroes = ['Remis', 'Unentschieden', 'ties', 'tie']
+    simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre']
+    zwnj = '‌'
     def do_HEAD(self):
         self.send_response(200)
-        self.send_header("Content-Type", "text/json")
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
 
     def do_GET(self):
@@ -75,15 +79,43 @@ class API(BaseHTTPRequestHandler):
                 return
             r_x_, r_y_ = res
             d = {'x': r_x_, 'y': r_y_}
-            self.send_response(200)
-            self.send_header("Content-Type", "text/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(json.dumps(d).encode())
+            self.respond_json(d)
 
         else:
             self.send_response(400)  # Bad Request
             self.end_headers()
+
+    def error(self, code):
+        self.send_response(code)
+        self.end_headers()
+
+    def respond_json(self, payload):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode())
+
+    def ephemeral(self, message, **kwargs):
+        self.respond_json(
+                {
+                    'response_type': 'ephemeral',
+                    'text': message,
+                    **kwargs
+                    }
+                )
+
+    def in_channel(self, message, **kwargs):
+        self.respond_json(
+                {
+                    'response_type': 'in_channel',
+                    'text': message,
+                    **kwargs
+                    }
+                )
+
+    def make_table(ranks):
+        return "\n".join("{}: {}".format(k[:2] + API.zwnj + k[2:], ranks[k])
+                for k in sorted(ranks, key=lambda x: ranks[x], reverse=True))
 
     def do_POST(self):
         self.make_post_parameters()
@@ -94,80 +126,69 @@ class API(BaseHTTPRequestHandler):
                 d = {"timestamp": timestamp(), "mood": mood}
                 with open(data_dir + '/mood.json', 'w') as f:
                     json.dump(d, f)
-            self.send_response(204)  # No content
-            self.end_headers()
+            return self.error(204)  # No content
 
         elif self.path in ('/sleep_start', '/sleep_stop'):
             d = {"timestamp": timestamp(), "status": ('asleep' if self.path == '/sleep_start' else 'awake')}
             with open(data_dir + '/status.json', 'w') as f:
                 json.dump(d, f)
-            self.send_response(204)  # No content
-            self.end_headers()
+            return self.error(204)  # No content
 
         elif self.path == '/slack':
             print(TOKEN, self.post_data)
             if self.post_data.get('token', None) != TOKEN:
-                self.send_response(403)  # Forbidden
-                self.end_headers()
-                return
+                return self.error(403)  # Forbidden
+
             text = (self.post_data.get('text', '').lower()
                     .replace(' ich', ' @' + self.post_data['user_name']).split(' '))
+
             if text[0] == 'schika':
-                ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
-                twos = ['verliert', 'unterliegt', 'loses', 'lost', 'verloren', 'verliere']
-                zeroes = ['Remis', 'Unentschieden', 'ties', 'tie']
-                simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre']
                 with open(data_dir + "/schika.json") as f:
                     ranks = json.load(f)
                 players = [word for word in text if word in ranks]
                 response = ''
-                zwnj = '‌'
                 if len(players) == 2:
                     x = ranks[players[0]]
                     y = ranks[players[1]]
-                    if any(w in text for w in ones):
+                    if any(w in text for w in API.ones):
                         x, y = elo(x, y, 1)
-                    elif any(w in text for w in twos):
+                    elif any(w in text for w in API.twos):
                         x, y = elo(x, y, 2)
-                    elif any(w in text for w in zeroes):
+                    elif any(w in text for w in API.zeroes):
                         x, y = elo(x, y, 0)
                     else:
-                        response = None
-                    if response is None:
-                        response = {'response_type': 'ephemeral', 'text': 'Ich habe dich nicht verstanden. Drücke dich klarer aus.'}
-                    else:
-                        ranks[players[0]] = x
-                        ranks[players[1]] = y
-                        if all(w not in text for w in simus):
-                            with open(data_dir + "/schika.json", 'w') as f:
-                                json.dump(ranks, f)
-                    foo = "\n".join("{}: {}".format(k[:2] + zwnj + k[2:], ranks[k]) for k in sorted(ranks, key=lambda x: ranks[x], reverse=True))
-                    response = {'response_type': 'in_channel', 'text': "Neue Tabelle:", 'attachments': [{'text': foo}]}
-                elif 'list' in text:
-                    foo = "\n".join("{}: {}".format(k[:2] + zwnj + k[2:], ranks[k]) for k in sorted(ranks, key=lambda x: ranks[x], reverse=True))
-                    response = {'response_type': 'in_channel', 'text': "Tabelle:", 'attachments': [{'text': foo}]}
+                        return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
+
+                    ranks[players[0]] = x
+                    ranks[players[1]] = y
+
+                    if all(w not in text for w in API.simus):
+                        with open(data_dir + "/schika.json", 'w') as f:
+                            json.dump(ranks, f)
+
+                    return self.in_channel("Neue Tabelle:", attachments=[{'text': self.make_table(ranks)}])
+
+                elif text[1] == 'list':
+                    return self.in_channel("Tabelle:", attachments=[{'text': self.make_table(ranks)}])
+
                 elif text[1] == 'set':
                     ranks[text[2]] = int(text[3])
                     with open(data_dir + "/schika.json", 'w') as f:
                         json.dump(ranks, f)
-                    response = {'response_type': 'ephemeral', 'text': 'Punkte von {} auf {} gesetzt'.format(text[2], text[3])}
+                    return self.ephemeral('Punkte von {} auf {} gesetzt'.format(text[2], text[3])})
 
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(response).encode())
+                # elif text[1] == 'help': ...
+                else:
+                    return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
+            else:
+                return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(text[0]))
 
         elif self.path == '/mensa.json':
-            self.send_response(200)
-            self.send_header("Content-Type", "text/json")
-            self.end_headers()
             meal_name = self.post_data.get(b'meal', b'fakju').decode()
             meal = ''.join(filter(str.islower, meal_name))
             rating = int(self.post_data.get(b'rating', b'-1'))
             if not (0 <= rating <= 5) or meal == 'fakju':
-                self.send_response(400)  # Bad Request
-                self.end_headers()
-                return
+                return self.error(400)  # Bad Request
             if 'asta' in meal and 'ffet' in meal:
                 meal = 'astaffet'  # Pastabuffet
             mealfile = "mensa/" + meal + ".json"
@@ -189,7 +210,7 @@ class API(BaseHTTPRequestHandler):
             with open(mealfile, 'w', encoding="latin-1") as f:
                 json.dump(ratings, f)
 
-            self.wfile.write(json.dumps(ratings).encode())
+            self.respond_json(ratings)
 
         elif self.path == '/phone':
             print(self.post_data)
@@ -202,17 +223,29 @@ class API(BaseHTTPRequestHandler):
             logging.info('latlon\t{},{}'.format(lat,lon))
             t = timestamp()
 
-            d = {"timestamp": t, "battery": battery}
+            d = {
+                    "timestamp": t,
+                    "battery": battery,
+                    }
             with open(data_dir + "/battery.json", "w") as f:
                 json.dump(d, f)
 
             if calendar:
                 if False and calendar.startswith("."):
-                    d = {"timestamp": t, "calendar": calendar[1:]}
+                    d = {
+                        "timestamp": t,
+                        "calendar": calendar[1:],
+                        }
                 else:
-                    d = {"timestamp": t, "calendar": "undisclosed"}
+                    d = {
+                        "timestamp": t,
+                        "calendar": "undisclosed",
+                        }
             else:
-                d = {"timestamp": t, "calendar": ""}
+                d = {
+                    "timestamp": t,
+                    "calendar": "",
+                    }
 
             with open(data_dir + "/calendar.json", "w") as f:
                 json.dump(d, f)
