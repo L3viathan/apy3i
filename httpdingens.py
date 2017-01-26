@@ -81,16 +81,13 @@ class API(BaseHTTPRequestHandler):
             who = int(self.url_params[b'who'])
             res = elo(r_x, r_y, who)
             if res is None:
-                self.send_response(403)
-                self.end_headers()
-                return
+                return self.error(400)  # Bad Request
             r_x_, r_y_ = res
             d = {'x': r_x_, 'y': r_y_}
             self.respond_json(d)
 
         else:
-            self.send_response(400)  # Bad Request
-            self.end_headers()
+            self.error(400)  # Bad Request
 
     def error(self, code):
         self.send_response(code)
@@ -277,9 +274,7 @@ class API(BaseHTTPRequestHandler):
                 except IndexError:
                     pass
 
-
-            self.send_response(204)  # No content
-            self.end_headers()
+            self.error(204)  # No content
 
     def make_post_parameters(self):
         length = int(self.headers.get('Content-Length'))
