@@ -89,14 +89,18 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
-    def in_channel(self, message, **kwargs):
-        self.respond_json(
-                {
-                    'response_type': 'in_channel',
-                    'text': message,
-                    **kwargs
-                    }
-                )
+    def in_channel(self, message, hide_sender=False, **kwargs):
+        json_reply = {
+                'response_type': 'in_channel',
+                'text': message,
+                **kwargs
+                }
+        if hide_sender:
+            self.ephemeral('')
+            url = self.post_data['response_url']
+            requests.post(url, json=json_reply)
+        else:
+            self.respond_json(json_reply)
 
     @staticmethod
     def make_table(ranks):
@@ -207,7 +211,7 @@ class API(BaseHTTPRequestHandler):
             elif text[0] == 'ruf':
                 rest = " ".join(text[1:])
                 names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
-                self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest))
+                self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest), hide_sender=True)
             else:
                 return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(text[0]))
 
