@@ -203,6 +203,7 @@ class API(BaseHTTPRequestHandler):
                     PRESENCE[person] = text[0] == 'da'
                 with open(data_dir + "/presence.json", "w") as f:
                     json.dump(PRESENCE, f)
+                self.ephemeral("Noted.")
             elif text[0] == 'ruf':
                 rest = " ".join(text[1:])
                 names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
