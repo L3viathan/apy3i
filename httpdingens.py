@@ -170,21 +170,21 @@ class API(BaseHTTPRequestHandler):
 
             text = (self.post_data.get('text', '').lower()
                     .replace(' ich', ' ' + user))
-            text, _ = API.tokenizer.scan(text)
+            tokens, _ = API.tokenizer.scan(text)
 
-            if text[0] == 'schika':
+            if tokens[0] == 'schika':
                 with open(data_dir + "/schika.json") as f:
                     ranks = json.load(f)
-                players = [word for word in text if word in ranks]
+                players = [word for word in tokens if word in ranks]
                 response = ''
                 if len(players) == 2:
                     x = ranks[players[0]]
                     y = ranks[players[1]]
-                    if any(w in text for w in API.ones):
+                    if any(w in tokens for w in API.ones):
                         x, y = self.elo(x, y, 1)
-                    elif any(w in text for w in API.twos):
+                    elif any(w in tokens for w in API.twos):
                         x, y = self.elo(x, y, 2)
-                    elif any(w in text for w in API.zeroes):
+                    elif any(w in tokens for w in API.zeroes):
                         x, y = self.elo(x, y, 0)
                     else:
                         return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
@@ -194,46 +194,46 @@ class API(BaseHTTPRequestHandler):
 
                     col = 'warning'
 
-                    if all(w not in text for w in API.simus):
+                    if all(w not in tokens for w in API.simus):
                         with open(data_dir + "/schika.json", 'w') as f:
                             json.dump(ranks, f)
                         col = 'good'
 
                     return self.attachment(text=self.make_table(ranks), color=col, title="Neue Tabelle")
 
-                elif text[1] == 'list':
+                elif tokens[1] == 'list':
                     col = 'good'
                     return self.attachment(text=self.make_table(ranks), color=col, title="Tabelle")
 
-                elif text[1] == 'set':
-                    ranks[text[2]] = int(text[3])
+                elif tokens[1] == 'set':
+                    ranks[tokens[2]] = int(tokens[3])
                     with open(data_dir + "/schika.json", 'w') as f:
                         json.dump(ranks, f)
-                    return self.ephemeral('Punkte von {} auf {} gesetzt'.format(text[2], text[3]))
+                    return self.ephemeral('Punkte von {} auf {} gesetzt'.format(tokens[2], tokens[3]))
 
-                elif text[1] == 'help':
+                elif tokens[1] == 'help':
                     return self.ephemeral('Befehle:\n/konga schika set <jemand> <punkte>\n'
                                         '/konga schika list\n'
                                         '/konga schika help\n')
                 else:
                     return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
-            elif text[0] == 'bell':
+            elif tokens[0] == 'bell':
                 return self.in_channel("Wuff!")
-            elif text[0] in ('da', 'weg'):
-                for person in text[1:]:
-                    PRESENCE[person] = text[0] == 'da'
+            elif tokens[0] in ('da', 'weg'):
+                for person in tokens[1:]:
+                    PRESENCE[person] = tokens[0] == 'da'
                 with open(data_dir + "/presence.json", "w") as f:
                     json.dump(PRESENCE, f)
                 self.ephemeral("Noted.")
-            elif text[0] == 'ruf':
-                rest = " ".join(text[1:])
+            elif tokens[0] == 'ruf':
+                rest = text[4:]
                 names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
                 self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest), hide_sender=True)
-            elif text[0] == 'say':
-                rest = " ".join(text[1:])
+            elif tokens[0] == 'say':
+                rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
             else:
-                return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(text[0]))
+                return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(tokens[0]))
 
         elif self.path == '/mensa.json':
             meal_name = self.post_data.get(b'meal', b'fakju').decode()
