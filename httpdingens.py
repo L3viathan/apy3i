@@ -89,6 +89,19 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
+    def attachment(self, args, hide_sender=False):
+        json_repply = {
+                'response_type': 'in_channel',
+                'attachments': [{**kwargs}],
+                }
+        if hide_sender:
+            self.error(200)
+            url = self.post_data['response_url']
+            requests.post(url, json=json_reply)
+        else:
+            self.respond_json(json_reply)
+
+
     def in_channel(self, message, hide_sender=False, **kwargs):
         json_reply = {
                 'response_type': 'in_channel',
@@ -179,14 +192,18 @@ class API(BaseHTTPRequestHandler):
                     ranks[players[0]] = x
                     ranks[players[1]] = y
 
+                    col = 'warning'
+
                     if all(w not in text for w in API.simus):
                         with open(data_dir + "/schika.json", 'w') as f:
                             json.dump(ranks, f)
+                        col = 'good'
 
-                    return self.in_channel("Neue Tabelle:", attachments=[{'text': self.make_table(ranks)}])
+                    return self.attachment(text=self.make_table(ranks), color=col, title="Neue Tabelle")
 
                 elif text[1] == 'list':
-                    return self.in_channel("Tabelle:", attachments=[{'text': self.make_table(ranks)}])
+                    col = 'good'
+                    return self.attachment(text=self.make_table(ranks), color=col, title="Tabelle")
 
                 elif text[1] == 'set':
                     ranks[text[2]] = int(text[3])
