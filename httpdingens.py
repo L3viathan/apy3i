@@ -175,7 +175,7 @@ class API(BaseHTTPRequestHandler):
                     ranks[text[2]] = int(text[3])
                     with open(data_dir + "/schika.json", 'w') as f:
                         json.dump(ranks, f)
-                    return self.ephemeral('Punkte von {} auf {} gesetzt'.format(text[2], text[3])})
+                    return self.ephemeral('Punkte von {} auf {} gesetzt'.format(text[2], text[3]))
 
                 # elif text[1] == 'help': ...
                 else:
