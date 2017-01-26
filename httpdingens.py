@@ -96,7 +96,7 @@ class API(BaseHTTPRequestHandler):
                 **kwargs
                 }
         if hide_sender:
-            self.ephemeral('')
+            self.error(200)
             url = self.post_data['response_url']
             requests.post(url, json=json_reply)
         else:
