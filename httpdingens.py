@@ -229,6 +229,9 @@ class API(BaseHTTPRequestHandler):
                 rest = " ".join(text[1:])
                 names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
                 self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest), hide_sender=True)
+            elif text[0] == 'say':
+                rest = " ".join(text[1:])
+                self.in_channel(rest, hide_sender=True)
             else:
                 return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(text[0]))
 
