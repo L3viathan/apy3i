@@ -1,8 +1,9 @@
+import re
 import json
 import requests
 import logging
-from time import time
 import datetime
+from time import time
 from os.path import isfile
 from urllib.parse import parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -48,6 +49,12 @@ class API(BaseHTTPRequestHandler):
     zeroes = ['Remis', 'Unentschieden', 'ties', 'tie']
     simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre']
     zwnj = '‌'
+
+    tokenizer = re.Scanner([
+        (r'[a-z@/_-]+|[^\sa-z@/_-]+', lambda _, x: x),
+        (r'\s+', None),
+        ])
+
     def do_HEAD(self):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -135,12 +142,14 @@ class API(BaseHTTPRequestHandler):
             return self.error(204)  # No content
 
         elif self.path == '/slack':
-            print(TOKEN, self.post_data)
             if self.post_data.get('token', None) != TOKEN:
                 return self.error(403)  # Forbidden
 
+            logging.info('Received slack command: ' + self.post_data.get('text', ''))
+
             text = (self.post_data.get('text', '').lower()
-                    .replace(' ich', ' @' + self.post_data['user_name']).split(' '))
+                    .replace(' ich', ' @' + self.post_data['user_name']))
+            text, _ = API.tokenizer.scan(text)
 
             if text[0] == 'schika':
                 with open(data_dir + "/schika.json") as f:
@@ -216,7 +225,6 @@ class API(BaseHTTPRequestHandler):
             self.respond_json(ratings)
 
         elif self.path == '/phone':
-            print(self.post_data)
             battery = self.post_data.get(b'battery', b'?').decode("utf-8", "ignore")
             calendar = self.post_data.get(b'event', b'').decode("utf-8", "ignore")
             lat = float(self.post_data.get(b'lat', 0))
