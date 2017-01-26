@@ -3,3 +3,4 @@ mensa
 advent
 app.py
 .slack-token
+__pycache__
