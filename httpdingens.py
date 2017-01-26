@@ -177,7 +177,10 @@ class API(BaseHTTPRequestHandler):
                         json.dump(ranks, f)
                     return self.ephemeral('Punkte von {} auf {} gesetzt'.format(text[2], text[3])})
 
-                # elif text[1] == 'help': ...
+                elif text[1] == 'help':
+                    return self.ephemeral('Befehle:\n/konga schika set <jemand> <punkte>\n'
+                                        '/konga schika list\n'
+                                        '/konga schika help\n')
                 else:
                     return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
             else:
