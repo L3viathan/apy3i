@@ -19,6 +19,9 @@ def timestamp():
 
 data_dir = "data"
 
+with open(data_dir + "/presence.json") as f:
+    PRESENCE = json.load(f)
+
 
 class API(BaseHTTPRequestHandler):
     ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
@@ -146,9 +149,10 @@ class API(BaseHTTPRequestHandler):
                 return self.error(403)  # Forbidden
 
             logging.info('Received slack command: ' + self.post_data.get('text', ''))
+            user = '@' + self.post_data['user_name']
 
             text = (self.post_data.get('text', '').lower()
-                    .replace(' ich', ' @' + self.post_data['user_name']))
+                    .replace(' ich', ' ' + user))
             text, _ = API.tokenizer.scan(text)
 
             if text[0] == 'schika':
@@ -192,6 +196,17 @@ class API(BaseHTTPRequestHandler):
                                         '/konga schika help\n')
                 else:
                     return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
+            elif text[0] == 'bell':
+                return self.in_channel("Wuff!")
+            elif text[0] in ('da', 'weg'):
+                for person in text[1:]:
+                    PRESENCE[person] = text[0] == 'da'
+                with open(data_dir + "/presence.json", "w") as f:
+                    json.dump(PRESENCE, f)
+            elif text[0] == 'ruf':
+                rest = " ".join(text[1:])
+                names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
+                self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest))
             else:
                 return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(text[0]))
 
@@ -282,15 +297,13 @@ class API(BaseHTTPRequestHandler):
     def make_post_parameters(self):
         length = int(self.headers.get('Content-Length'))
         data = self.rfile.read(length)
-        d = parse_qs(data.decode('utf-8'))#.encode('ascii'))
-        #d = parse_qs(data.decode('utf-8').encode('ascii'))
+        d = parse_qs(data.decode('utf-8'))
         self.post_data = {key: (value[0] if value else None) for key, value in d.items()}
 
     def make_get_parameters(self):
         if "?" not in self.path:
             self.url_params = {}
             return
-        #d = parse_qs(self.path.split("?", 1)[1].decode('utf-8').encode('ascii'))
         d = parse_qs(self.path.split("?", 1)[1].encode('ascii'))
         self.url_params = {key: (value[0] if value else None) for key, value in d.items()}
 
