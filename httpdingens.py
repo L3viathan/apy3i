@@ -19,29 +19,6 @@ def timestamp():
 
 data_dir = "data"
 
-def elo(r_x, r_y, who):
-    k = 16
-    if who == 2:
-        S_x = 0
-        S_y = 1
-    elif who == 1:
-        S_x = 1
-        S_y = 0
-    elif who == 0:
-        S_x = 0.5
-        S_y = 0.5
-    else:
-        return None
-
-    R_x = 10**(r_x/400)
-    R_y = 10**(r_y/400)
-
-    E_x = R_x/(R_x+R_y)
-    E_y = R_y/(R_x+R_y)
-
-    r_x_ = round(r_x + k * (S_x-E_x))
-    r_y_ = round(r_y + k * (S_y-E_y))
-    return r_x_, r_y_
 
 class API(BaseHTTPRequestHandler):
     ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
@@ -79,7 +56,8 @@ class API(BaseHTTPRequestHandler):
             r_x = int(self.url_params[b'x'])
             r_y = int(self.url_params[b'y'])
             who = int(self.url_params[b'who'])
-            res = elo(r_x, r_y, who)
+            k = int(self.url_params.get(b'k', 16))
+            res = self.elo(r_x, r_y, who, k=k)
             if res is None:
                 return self.error(400)  # Bad Request
             r_x_, r_y_ = res
@@ -117,9 +95,34 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
+    @staticmethod
     def make_table(ranks):
         return "\n".join("{}: {}".format(k[:2] + API.zwnj + k[2:], ranks[k])
                 for k in sorted(ranks, key=lambda x: ranks[x], reverse=True))
+
+    @staticmethod
+    def elo(r_x, r_y, who, k=16):
+        if who == 2:
+            S_x = 0
+            S_y = 1
+        elif who == 1:
+            S_x = 1
+            S_y = 0
+        elif who == 0:
+            S_x = 0.5
+            S_y = 0.5
+        else:
+            return None
+
+        R_x = 10**(r_x/400)
+        R_y = 10**(r_y/400)
+
+        E_x = R_x/(R_x+R_y)
+        E_y = R_y/(R_x+R_y)
+
+        r_x_ = round(r_x + k * (S_x-E_x))
+        r_y_ = round(r_y + k * (S_y-E_y))
+        return r_x_, r_y_
 
     def do_POST(self):
         self.make_post_parameters()
@@ -157,11 +160,11 @@ class API(BaseHTTPRequestHandler):
                     x = ranks[players[0]]
                     y = ranks[players[1]]
                     if any(w in text for w in API.ones):
-                        x, y = elo(x, y, 1)
+                        x, y = self.elo(x, y, 1)
                     elif any(w in text for w in API.twos):
-                        x, y = elo(x, y, 2)
+                        x, y = self.elo(x, y, 2)
                     elif any(w in text for w in API.zeroes):
-                        x, y = elo(x, y, 0)
+                        x, y = self.elo(x, y, 0)
                     else:
                         return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
 
