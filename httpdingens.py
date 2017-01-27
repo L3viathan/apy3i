@@ -230,6 +230,8 @@ class API(BaseHTTPRequestHandler):
             elif tokens[0] == 'say':
                 rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
+            elif tokens[0] == 'help':
+                self.ephemeral('Verfügbare Befehle: schika, say, bell, da, weg, ruf, present, help')
             else:
                 return self.ephemeral('Das Kommando {} wurde noch nicht implementiert. Frag @jonathan.'.format(tokens[0]))
 
