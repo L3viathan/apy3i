@@ -27,7 +27,7 @@ class API(BaseHTTPRequestHandler):
     ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
     twos = ['verliert', 'unterliegt', 'loses', 'lost', 'verloren', 'verliere']
     zeroes = ['Remis', 'Unentschieden', 'ties', 'tie']
-    simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre']
+    simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre', 'würde']
     zwnj = '‌'
 
     tokenizer = re.Scanner([
@@ -89,8 +89,8 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
-    def attachment(self, args, hide_sender=False):
-        json_repply = {
+    def attachment(self, hide_sender=False, **kwargs):
+        json_reply = {
                 'response_type': 'in_channel',
                 'attachments': [{**kwargs}],
                 }
@@ -169,7 +169,7 @@ class API(BaseHTTPRequestHandler):
             user = '@' + self.post_data['user_name']
 
             text = (self.post_data.get('text', '').lower()
-                    .replace(' ich', ' ' + user))
+                    .replace(' ich', ' ' + user).replace(' mich', ' ' + user))
             tokens, _ = API.tokenizer.scan(text)
 
             if tokens[0] == 'schika':
@@ -187,7 +187,7 @@ class API(BaseHTTPRequestHandler):
                     elif any(w in tokens for w in API.zeroes):
                         x, y = self.elo(x, y, 0)
                     else:
-                        return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
+                        return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus. (1)')
 
                     ranks[players[0]] = x
                     ranks[players[1]] = y
@@ -216,7 +216,7 @@ class API(BaseHTTPRequestHandler):
                                         '/konga schika list\n'
                                         '/konga schika help\n')
                 else:
-                    return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus.')
+                    return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus. (2)')
             elif tokens[0] == 'bell':
                 return self.in_channel("Wuff!")
             elif tokens[0] in ('da', 'weg'):
