@@ -8,11 +8,14 @@ from os.path import isfile
 from urllib.parse import parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-logging.basicConfig(filename="/var/log/api.log", level=logging.INFO, format='%(asctime)s\t%(message)s')
+logging.basicConfig(
+        filename="/var/log/api.log",
+        level=logging.INFO,
+        format='%(asctime)s\t%(message)s',
+        )
 
 with open(".slack-token") as f:
     TOKEN = f.read().strip()
-
 
 def timestamp():
     return int(time())
@@ -26,9 +29,13 @@ with open(data_dir + "/presence.json") as f:
 class API(BaseHTTPRequestHandler):
     ones = ['gewinnt', 'besiegt', 'wins', 'defeats', 'gewonnen', 'gewinne', 'gewinnen']
     twos = ['verliert', 'unterliegt', 'loses', 'lost', 'verloren', 'verliere']
-    zeroes = ['Remis', 'Unentschieden', 'ties', 'tie']
+    zeroes = ['remis', 'unentschieden', 'ties', 'tie']
     simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre', 'würde']
     zwnj = '‌'
+    table = {
+            author_link = 'https://github.com/L3viathan/schikanoeschen/blob/master/german.md',
+            author_name = 'Offizielle Turnierregeln',
+            }
 
     tokenizer = re.Scanner([
         (r'[a-z@/_-]+|[^\sa-z@/_-]+', lambda _, x: x),
@@ -146,13 +153,19 @@ class API(BaseHTTPRequestHandler):
         if self.path == '/mood':
             mood = self.post_data.get(b'mood', b'').decode("utf-8", "ignore")
             if mood:
-                d = {"timestamp": timestamp(), "mood": mood}
+                d = {
+                        "timestamp": timestamp(),
+                        "mood": mood,
+                        }
                 with open(data_dir + '/mood.json', 'w') as f:
                     json.dump(d, f)
             return self.send_headers(204)  # No content
 
         elif self.path in ('/sleep_start', '/sleep_stop'):
-            d = {"timestamp": timestamp(), "status": ('asleep' if self.path == '/sleep_start' else 'awake')}
+            d = {
+                    "timestamp": timestamp(),
+                    "status": ('asleep' if self.path == '/sleep_start' else 'awake'),
+                    }
             with open(data_dir + '/status.json', 'w') as f:
                 json.dump(d, f)
             return self.send_headers(204)  # No content
@@ -188,18 +201,16 @@ class API(BaseHTTPRequestHandler):
                     ranks[players[0]] = x
                     ranks[players[1]] = y
 
-                    col = 'warning'
-
                     if all(w not in tokens for w in API.simus):
                         with open(data_dir + "/schika.json", 'w') as f:
                             json.dump(ranks, f)
-                        col = 'good'
+                        return self.attachment(text=self.make_table(ranks), color='good', **API.table)
 
-                    return self.attachment(text=self.make_table(ranks), color=col, title="Neue Tabelle", hide_sender=(col=='good'))
+                    # simulation:
+                    return self.attachment(text=self.make_table(ranks), color='warning', hide_sender=True, **API.table, footer='Simulation')
 
                 elif tokens[1] == 'list':
-                    col = 'good'
-                    return self.attachment(text=self.make_table(ranks), color=col, title="Tabelle", hide_sender=True)
+                    return self.attachment(text=self.make_table(ranks), color='good', hide_sender=True, **API.table)
 
                 elif tokens[1] == 'set':
                     ranks[tokens[2]] = int(tokens[3])
@@ -249,7 +260,11 @@ class API(BaseHTTPRequestHandler):
                 with open(mealfile, encoding="latin-1") as f:
                     ratings = json.load(f)
             else:
-                ratings = {'stars':0, 'number':0, 'name': meal_name}
+                ratings = {
+                        'stars':0,
+                        'number':0,
+                        'name': meal_name,
+                        }
 
             if meal in ("uspargrndenentflltdasssensamstags","hristiimmelfahrteschlossen"):
                 ratings['meta'] = True
