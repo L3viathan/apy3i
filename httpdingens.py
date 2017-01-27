@@ -195,11 +195,11 @@ class API(BaseHTTPRequestHandler):
                             json.dump(ranks, f)
                         col = 'good'
 
-                    return self.attachment(text=self.make_table(ranks), color=col, title="Neue Tabelle")
+                    return self.attachment(text=self.make_table(ranks), color=col, title="Neue Tabelle", hide_sender=(col=='good'))
 
                 elif tokens[1] == 'list':
                     col = 'good'
-                    return self.attachment(text=self.make_table(ranks), color=col, title="Tabelle")
+                    return self.attachment(text=self.make_table(ranks), color=col, title="Tabelle", hide_sender=True)
 
                 elif tokens[1] == 'set':
                     ranks[tokens[2]] = int(tokens[3])
