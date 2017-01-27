@@ -33,8 +33,8 @@ class API(BaseHTTPRequestHandler):
     simus = ['test', 'wenn', 'hätte', 'gewönne', 'verlöre', 'würde']
     zwnj = '‌'
     table = {
-            author_link = 'https://github.com/L3viathan/schikanoeschen/blob/master/german.md',
-            author_name = 'Offizielle Turnierregeln',
+            'author_link': 'https://github.com/L3viathan/schikanoeschen/blob/master/german.md',
+            'author_name': 'Offizielle Turnierregeln',
             }
 
     tokenizer = re.Scanner([
