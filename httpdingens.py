@@ -36,9 +36,7 @@ class API(BaseHTTPRequestHandler):
         ])
 
     def do_HEAD(self):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
+        self.headers(200)
 
     def do_GET(self):
         self.make_get_parameters()
@@ -49,10 +47,7 @@ class API(BaseHTTPRequestHandler):
                         '/calendar.json',
                         '/location.json',
                         ):
-            self.send_response(200)
-            self.send_header("Content-Type", "text/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
+            self.headers(200)
             with open(data_dir + self.path, 'rb') as f:
                 self.wfile.write(f.read())
         elif self.path.startswith('/elo.json'):
@@ -62,22 +57,23 @@ class API(BaseHTTPRequestHandler):
             k = int(self.url_params.get(b'k', 16))
             res = self.elo(r_x, r_y, who, k=k)
             if res is None:
-                return self.error(400)  # Bad Request
+                return self.headers(400)  # Bad Request
             r_x_, r_y_ = res
             d = {'x': r_x_, 'y': r_y_}
             self.respond_json(d)
 
         else:
-            self.error(400)  # Bad Request
+            self.headers(400)  # Bad Request
 
-    def error(self, code):
+    def headers(self, code):
         self.send_response(code)
+        if code == 200:
+            self.send_header("Content-Type", "text/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
     def respond_json(self, payload):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
+        self.headers(200)
         self.wfile.write(json.dumps(payload).encode())
 
     def ephemeral(self, message, **kwargs):
@@ -95,7 +91,7 @@ class API(BaseHTTPRequestHandler):
                 'attachments': [{**kwargs}],
                 }
         if hide_sender:
-            self.error(200)
+            self.headers(200)
             url = self.post_data['response_url']
             requests.post(url, json=json_reply)
         else:
@@ -109,7 +105,7 @@ class API(BaseHTTPRequestHandler):
                 **kwargs
                 }
         if hide_sender:
-            self.error(200)
+            self.headers(200)
             url = self.post_data['response_url']
             requests.post(url, json=json_reply)
         else:
@@ -153,17 +149,17 @@ class API(BaseHTTPRequestHandler):
                 d = {"timestamp": timestamp(), "mood": mood}
                 with open(data_dir + '/mood.json', 'w') as f:
                     json.dump(d, f)
-            return self.error(204)  # No content
+            return self.headers(204)  # No content
 
         elif self.path in ('/sleep_start', '/sleep_stop'):
             d = {"timestamp": timestamp(), "status": ('asleep' if self.path == '/sleep_start' else 'awake')}
             with open(data_dir + '/status.json', 'w') as f:
                 json.dump(d, f)
-            return self.error(204)  # No content
+            return self.headers(204)  # No content
 
         elif self.path == '/slack':
             if self.post_data.get('token', None) != TOKEN:
-                return self.error(403)  # Forbidden
+                return self.headers(403)  # Forbidden
 
             logging.info('Received slack command: ' + self.post_data.get('text', ''))
             user = '@' + self.post_data['user_name']
@@ -229,6 +225,8 @@ class API(BaseHTTPRequestHandler):
                 rest = text[4:]
                 names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
                 self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest), hide_sender=True)
+            elif tokens[0] == 'present':
+                self.ephemeral(', '.join(filter(bool, PRESENCE)))
             elif tokens[0] == 'say':
                 rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
@@ -240,7 +238,7 @@ class API(BaseHTTPRequestHandler):
             meal = ''.join(filter(str.islower, meal_name))
             rating = int(self.post_data.get(b'rating', b'-1'))
             if not (0 <= rating <= 5) or meal == 'fakju':
-                return self.error(400)  # Bad Request
+                return self.headers(400)  # Bad Request
             if 'asta' in meal and 'ffet' in meal:
                 meal = 'astaffet'  # Pastabuffet
             mealfile = "mensa/" + meal + ".json"
@@ -317,7 +315,7 @@ class API(BaseHTTPRequestHandler):
                 except IndexError:
                     pass
 
-            self.error(204)  # No content
+            self.headers(204)  # No content
 
     def make_post_parameters(self):
         length = int(self.headers.get('Content-Length'))
