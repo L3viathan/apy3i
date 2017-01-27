@@ -68,7 +68,7 @@ class API(BaseHTTPRequestHandler):
     def send_headers(self, code):
         self.send_response(code)
         if code == 200:
-            self.send_header("Content-Type", "text/json")
+            self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
@@ -318,7 +318,7 @@ class API(BaseHTTPRequestHandler):
             self.send_headers(204)  # No content
 
     def make_post_parameters(self):
-        length = int(self.send_headers.get('Content-Length'))
+        length = int(self.headers.get('Content-Length'))
         data = self.rfile.read(length)
         d = parse_qs(data.decode('utf-8'))
         self.post_data = {key: (value[0] if value else None) for key, value in d.items()}
