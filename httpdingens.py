@@ -36,7 +36,7 @@ class API(BaseHTTPRequestHandler):
         ])
 
     def do_HEAD(self):
-        self.headers(200)
+        self.send_headers(200)
 
     def do_GET(self):
         self.make_get_parameters()
@@ -47,7 +47,7 @@ class API(BaseHTTPRequestHandler):
                         '/calendar.json',
                         '/location.json',
                         ):
-            self.headers(200)
+            self.send_headers(200)
             with open(data_dir + self.path, 'rb') as f:
                 self.wfile.write(f.read())
         elif self.path.startswith('/elo.json'):
@@ -57,15 +57,15 @@ class API(BaseHTTPRequestHandler):
             k = int(self.url_params.get(b'k', 16))
             res = self.elo(r_x, r_y, who, k=k)
             if res is None:
-                return self.headers(400)  # Bad Request
+                return self.send_headers(400)  # Bad Request
             r_x_, r_y_ = res
             d = {'x': r_x_, 'y': r_y_}
             self.respond_json(d)
 
         else:
-            self.headers(400)  # Bad Request
+            self.send_headers(400)  # Bad Request
 
-    def headers(self, code):
+    def send_headers(self, code):
         self.send_response(code)
         if code == 200:
             self.send_header("Content-Type", "text/json")
@@ -73,7 +73,7 @@ class API(BaseHTTPRequestHandler):
         self.end_headers()
 
     def respond_json(self, payload):
-        self.headers(200)
+        self.send_headers(200)
         self.wfile.write(json.dumps(payload).encode())
 
     def ephemeral(self, message, **kwargs):
@@ -91,7 +91,7 @@ class API(BaseHTTPRequestHandler):
                 'attachments': [{**kwargs}],
                 }
         if hide_sender:
-            self.headers(200)
+            self.send_headers(200)
             url = self.post_data['response_url']
             requests.post(url, json=json_reply)
         else:
@@ -105,7 +105,7 @@ class API(BaseHTTPRequestHandler):
                 **kwargs
                 }
         if hide_sender:
-            self.headers(200)
+            self.send_headers(200)
             url = self.post_data['response_url']
             requests.post(url, json=json_reply)
         else:
@@ -149,17 +149,17 @@ class API(BaseHTTPRequestHandler):
                 d = {"timestamp": timestamp(), "mood": mood}
                 with open(data_dir + '/mood.json', 'w') as f:
                     json.dump(d, f)
-            return self.headers(204)  # No content
+            return self.send_headers(204)  # No content
 
         elif self.path in ('/sleep_start', '/sleep_stop'):
             d = {"timestamp": timestamp(), "status": ('asleep' if self.path == '/sleep_start' else 'awake')}
             with open(data_dir + '/status.json', 'w') as f:
                 json.dump(d, f)
-            return self.headers(204)  # No content
+            return self.send_headers(204)  # No content
 
         elif self.path == '/slack':
             if self.post_data.get('token', None) != TOKEN:
-                return self.headers(403)  # Forbidden
+                return self.send_headers(403)  # Forbidden
 
             logging.info('Received slack command: ' + self.post_data.get('text', ''))
             user = '@' + self.post_data['user_name']
@@ -238,7 +238,7 @@ class API(BaseHTTPRequestHandler):
             meal = ''.join(filter(str.islower, meal_name))
             rating = int(self.post_data.get(b'rating', b'-1'))
             if not (0 <= rating <= 5) or meal == 'fakju':
-                return self.headers(400)  # Bad Request
+                return self.send_headers(400)  # Bad Request
             if 'asta' in meal and 'ffet' in meal:
                 meal = 'astaffet'  # Pastabuffet
             mealfile = "mensa/" + meal + ".json"
@@ -315,10 +315,10 @@ class API(BaseHTTPRequestHandler):
                 except IndexError:
                     pass
 
-            self.headers(204)  # No content
+            self.send_headers(204)  # No content
 
     def make_post_parameters(self):
-        length = int(self.headers.get('Content-Length'))
+        length = int(self.send_headers.get('Content-Length'))
         data = self.rfile.read(length)
         d = parse_qs(data.decode('utf-8'))
         self.post_data = {key: (value[0] if value else None) for key, value in d.items()}
