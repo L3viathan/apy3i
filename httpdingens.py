@@ -97,7 +97,7 @@ class API(BaseHTTPRequestHandler):
     def attachment(self, hide_sender=False, **kwargs):
         json_reply = {
                 'response_type': 'in_channel',
-                'attachments': [{**kwargs}],
+                'attachments': [{fallback="<New message>", **kwargs}],
                 }
         if hide_sender:
             self.send_headers(200)
