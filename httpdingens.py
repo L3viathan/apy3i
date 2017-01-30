@@ -4,7 +4,9 @@ import requests
 import logging
 import datetime
 import tokens
+import external_apis
 from time import time
+from random import shuffle
 from os.path import isfile
 from urllib.parse import parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -239,6 +241,27 @@ class API(BaseHTTPRequestHandler):
             elif tokens[0] == 'say':
                 rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
+            elif token[0] == 'trivia':
+                q = external_apis.trivia()
+                answers = q["incorrect_answers"] + [q["correct_answer"]]
+                shuffle(answers)
+                self.attachment(
+                        title="Trivia, Kategorie {}".format(q["category"]),
+                        text=q["question"],
+                        fields=[
+                            {
+                                "title": letter,
+                                "value": answer,
+                                "short": True,
+                                }
+                            for letter, answer
+                            in zip("ABCD", answers)
+                            ],
+                        )
+                self.question = q
+            elif token[0] == 'lösung':
+                self.in_channel("Die richtige Antwort war: {}".format(self.question["correct_answer"]))
+
             elif tokens[0] == 'help':
                 self.ephemeral('Verfügbare Befehle: schika, say, bell, da, weg, ruf, present, help')
             else:
