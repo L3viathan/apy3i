@@ -3,6 +3,7 @@ import json
 import requests
 import logging
 import datetime
+import tokens
 from time import time
 from os.path import isfile
 from urllib.parse import parse_qs
@@ -13,9 +14,6 @@ logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s\t%(message)s',
         )
-
-with open(".slack-token") as f:
-    TOKEN = f.read().strip()
 
 def timestamp():
     return int(time())
@@ -171,7 +169,7 @@ class API(BaseHTTPRequestHandler):
             return self.send_headers(204)  # No content
 
         elif self.path == '/slack':
-            if self.post_data.get('token', None) != TOKEN:
+            if self.post_data.get('token', None) != tokens.slack:
                 return self.send_headers(403)  # Forbidden
 
             logging.info('Received slack command: ' + self.post_data.get('text', ''))
