@@ -3,13 +3,14 @@ import json
 import requests
 import logging
 import datetime
-import tokens
+import tokens as TOKENS
 import external_apis
 from time import time
 from random import shuffle
 from os.path import isfile
 from urllib.parse import parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from html import unescape
 
 logging.basicConfig(
         filename="/var/log/api.log",
@@ -41,6 +42,7 @@ class API(BaseHTTPRequestHandler):
         (r'[a-z@/_-]+|[^\sa-z@/_-]+', lambda _, x: x),
         (r'\s+', None),
         ])
+    state = {}
 
     def do_HEAD(self):
         self.send_headers(200)
@@ -171,7 +173,7 @@ class API(BaseHTTPRequestHandler):
             return self.send_headers(204)  # No content
 
         elif self.path == '/slack':
-            if self.post_data.get('token', None) != tokens.slack:
+            if self.post_data.get('token', None) != TOKENS.slack:
                 return self.send_headers(403)  # Forbidden
 
             logging.info('Received slack command: ' + self.post_data.get('text', ''))
@@ -241,13 +243,13 @@ class API(BaseHTTPRequestHandler):
             elif tokens[0] == 'say':
                 rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
-            elif token[0] == 'trivia':
+            elif tokens[0] == 'trivia':
                 q = external_apis.trivia()
-                answers = q["incorrect_answers"] + [q["correct_answer"]]
+                answers = [*map(unescape, q["incorrect_answers"] + [q["correct_answer"]])]
                 shuffle(answers)
                 self.attachment(
                         title="Trivia, Kategorie {}".format(q["category"]),
-                        text=q["question"],
+                        text=unescape(q["question"]),
                         fields=[
                             {
                                 "title": letter,
@@ -258,9 +260,9 @@ class API(BaseHTTPRequestHandler):
                             in zip("ABCD", answers)
                             ],
                         )
-                self.question = q
-            elif token[0] == 'lösung':
-                self.in_channel("Die richtige Antwort war: {}".format(self.question["correct_answer"]))
+                API.state['answer'] = unescape(q["correct_answer"])
+            elif tokens[0] == 'solve':
+                self.in_channel("Die richtige Antwort war: {}".format(API.state["answer"]))
 
             elif tokens[0] == 'help':
                 self.ephemeral('Verfügbare Befehle: schika, say, bell, da, weg, ruf, present, help')
