@@ -36,6 +36,8 @@ class API(BaseHTTPRequestHandler):
     table = {
             'author_link': 'https://github.com/L3viathan/schikanoeschen/blob/master/german.md',
             'author_name': 'Offizielle Turnierregeln',
+            'fallback': '<Ligatabelle>',
+            'title': 'Tabelle'
             }
 
     tokenizer = re.Scanner([
@@ -94,10 +96,10 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
-    def attachment(self, hide_sender=False, **kwargs):
+    def attachment(self, hide_sender=False, fallback="<New message>", **kwargs):
         json_reply = {
                 'response_type': 'in_channel',
-                'attachments': [{fallback="<New message>", **kwargs}],
+                'attachments': [{fallback: fallback, **kwargs}],
                 }
         if hide_sender:
             self.send_headers(200)
