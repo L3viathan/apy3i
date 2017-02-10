@@ -36,8 +36,10 @@ class API(BaseHTTPRequestHandler):
     table = {
             'author_link': 'https://github.com/L3viathan/schikanoeschen/blob/master/german.md',
             'author_name': 'Offizielle Turnierregeln',
+            'author_icon': 'https://static.l3vi.de/book.png',
             'fallback': '<Ligatabelle>',
-            'title': 'Tabelle'
+            'title': 'Tabelle',
+            'thumb_url': 'https://static.l3vi.de/karten.png',
             }
 
     tokenizer = re.Scanner([
@@ -96,9 +98,10 @@ class API(BaseHTTPRequestHandler):
                     }
                 )
 
-    def attachment(self, hide_sender=False, fallback="<New message>", **kwargs):
+    def attachment(self, hide_sender=False, fallback="<New message>", public=True, **kwargs):
+        response_type = 'in_channel' if public else 'ephemeral'
         json_reply = {
-                'response_type': 'in_channel',
+                'response_type': response_type,
                 'attachments': [{fallback: fallback, **kwargs}],
                 }
         if hide_sender:
@@ -211,7 +214,7 @@ class API(BaseHTTPRequestHandler):
                         return self.attachment(text=self.make_table(ranks), color='good', **API.table)
 
                     # simulation:
-                    return self.attachment(text=self.make_table(ranks), color='warning', hide_sender=True, **API.table, footer='Simulation')
+                    return self.attachment(text=self.make_table(ranks), color='warning', hide_sender=True, public=False, **API.table, footer='Simulation')
 
                 elif tokens[1] == 'list':
                     return self.attachment(text=self.make_table(ranks), color='good', hide_sender=True, **API.table)
