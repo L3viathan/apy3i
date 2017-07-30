@@ -23,8 +23,8 @@ def timestamp():
 
 data_dir = "data"
 
-with open(data_dir + "/presence.json") as f:
-    PRESENCE = json.load(f)
+# with open(data_dir + "/presence.json") as f:
+#     PRESENCE = json.load(f)
 
 
 class API(BaseHTTPRequestHandler):
@@ -46,7 +46,9 @@ class API(BaseHTTPRequestHandler):
         (r'[a-z@/_-]+|[^\sa-z@/_-]+', lambda _, x: x),
         (r'\s+', None),
         ])
-    state = {}
+    state = {
+            'zuhause': {}
+            }
 
     def do_HEAD(self):
         self.send_headers(200)
@@ -58,6 +60,7 @@ class API(BaseHTTPRequestHandler):
                         '/mood.json',
                         '/battery.json',
                         '/calendar.json',
+                        '/schika.json',
                         '/location.json',
                         ):
             self.send_headers(200)
@@ -127,8 +130,8 @@ class API(BaseHTTPRequestHandler):
 
     @staticmethod
     def make_table(ranks):
-        return "\n".join("{}: {}".format(k[:2] + API.zwnj + k[2:], ranks[k])
-                for k in sorted(ranks, key=lambda x: ranks[x], reverse=True))
+        return "\n".join("{}: {}".format(k[:2] + API.zwnj + k[2:], ranks[k]['score'])
+            for k in sorted(ranks, key=lambda x: ranks[x]['score'], reverse=True) if ranks[k].get('active') != False)
 
     @staticmethod
     def elo(r_x, r_y, who, k=16):
@@ -177,6 +180,20 @@ class API(BaseHTTPRequestHandler):
                 json.dump(d, f)
             return self.send_headers(204)  # No content
 
+        elif self.path == '/zuhause':
+            API.state['zuhause'] = {}
+            for person in self.post_data:
+                API.state['zuhause'][person] = self.post_data[person].split(",")
+            # for person in API.state['zuhause']:
+            #     n = API.state['zuhause']
+            #     if n == 1:
+            #         del API.state['zuhause'][person]
+            #     else:
+            #         API.state['zuhause'][person] -= 1
+            # for person in online.split(","):
+            #     API.state['zuhause'][person] = 2  # we have patience
+            return self.send_headers(204)  # No content
+
         elif self.path == '/slack':
             if self.post_data.get('token', None) != TOKENS.slack:
                 return self.send_headers(403)  # Forbidden
@@ -194,8 +211,8 @@ class API(BaseHTTPRequestHandler):
                 players = [word for word in tokens if word in ranks]
                 response = ''
                 if len(players) == 2:
-                    x = ranks[players[0]]
-                    y = ranks[players[1]]
+                    x = ranks[players[0]]['score']
+                    y = ranks[players[1]]['score']
                     if any(w in tokens for w in API.ones):
                         x, y = self.elo(x, y, 1)
                     elif any(w in tokens for w in API.twos):
@@ -205,8 +222,8 @@ class API(BaseHTTPRequestHandler):
                     else:
                         return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus. (1)')
 
-                    ranks[players[0]] = x
-                    ranks[players[1]] = y
+                    ranks[players[0]]['score'] = x
+                    ranks[players[1]]['score'] = y
 
                     if all(w not in tokens for w in API.simus):
                         with open(data_dir + "/schika.json", 'w') as f:
@@ -219,8 +236,20 @@ class API(BaseHTTPRequestHandler):
                 elif tokens[1] == 'list':
                     return self.attachment(text=self.make_table(ranks), color='good', hide_sender=True, **API.table)
 
+                elif tokens[1] == 'hide':
+                    ranks[tokens[2]]['active'] = False
+                    with open(data_dir + "/schika.json", 'w') as f:
+                        json.dump(ranks, f)
+                    return self.ephemeral('Ich habe {} aus der Tabelle entfernt'.format(tokens[2]))
+
+                elif tokens[1] == 'unhide':
+                    ranks[tokens[2]]['active'] = True
+                    with open(data_dir + "/schika.json", 'w') as f:
+                        json.dump(ranks, f)
+                    return self.ephemeral('Ich habe {} in die Tabelle genommen'.format(tokens[2]))
+
                 elif tokens[1] == 'set':
-                    ranks[tokens[2]] = int(tokens[3])
+                    ranks[tokens[2]] = {'score': int(tokens[3]), 'active': True}
                     with open(data_dir + "/schika.json", 'w') as f:
                         json.dump(ranks, f)
                     return self.ephemeral('Punkte von {} auf {} gesetzt'.format(tokens[2], tokens[3]))
@@ -233,18 +262,28 @@ class API(BaseHTTPRequestHandler):
                     return self.ephemeral('Ich habe dich nicht verstanden. Drücke dich klarer aus. (2)')
             elif tokens[0] == 'bell':
                 return self.in_channel("Wuff!")
-            elif tokens[0] in ('da', 'weg'):
-                for person in tokens[1:]:
-                    PRESENCE[person] = tokens[0] == 'da'
-                with open(data_dir + "/presence.json", "w") as f:
-                    json.dump(PRESENCE, f)
-                self.ephemeral("Noted.")
-            elif tokens[0] == 'ruf':
+            # elif tokens[0] in ('da', 'weg'):
+            #     for person in tokens[1:]:
+            #         PRESENCE[person] = tokens[0] == 'da'
+            #     with open(data_dir + "/presence.json", "w") as f:
+            #         json.dump(PRESENCE, f)
+            #     self.ephemeral("Noted.")
+            elif tokens[0] in ('alle', 'ruf'):
                 rest = text[4:]
-                names = ", ".join(name for name in PRESENCE if PRESENCE[name] and name != user)
+                names = ", ".join(name for name in API.state['zuhause'] and name != user)
                 self.in_channel('{}: Nachricht von {}: {}'.format(names, user, rest), hide_sender=True)
-            elif tokens[0] == 'present':
-                self.ephemeral(', '.join(filter(bool, PRESENCE)))
+            elif tokens[0] == 'zuhause':
+                # online = ', '.join(API.state['zuhause'])
+                online = ', '.join('{} ({})'.format(
+                    name,
+                    ', '.join(host for host in API.state['zuhause'][name])
+                    )
+                    for name in API.state['zuhause']
+                    )
+                if online:
+                    self.ephemeral(online)
+                else:
+                    self.ephemeral('Im Moment scheint niemand zuhause zu sein.')
             elif tokens[0] == 'say':
                 rest = text[4:]
                 self.in_channel(rest, hide_sender=True)
